@@ -3,7 +3,7 @@ from datetime import datetime
 import pandas as pd
 
 
-class DataHandler(ABC):
+class DataReader(ABC):
     def __init__(self,
                  db_connector: object):
         self.db_connector = db_connector

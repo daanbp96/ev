@@ -2,9 +2,9 @@ import random
 import pandas as pd
 from datetime import datetime, timezone, timedelta
 
-from data.data_handler import DataHandler
+from data.data_reader import DataReader
 
-class SessionHandler(DataHandler):
+class SessionReader(DataReader):
     def __init__(self, db_connector: object):
         super().__init__(db_connector)
     
@@ -15,11 +15,11 @@ class SessionHandler(DataHandler):
             return self.generate_dummy_data(start_dt_utc, end_dt_utc)
     
     def generate_dummy_data(self, start_dt_utc: datetime = None, end_dt_utc: datetime = None) -> pd.DataFrame:
-        num_sessions = 10  # Generate 10 dummy sessions
+        num_sessions = 20  # Generate 10 dummy sessions
         data = []
         
         if not start_dt_utc:
-            start_dt_utc = datetime.now(timezone.utc) - timedelta(days=30)
+            start_dt_utc = datetime.now(timezone.utc) - timedelta(days=7)
         if not end_dt_utc:
             end_dt_utc = datetime.now(timezone.utc)
         
