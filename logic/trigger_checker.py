@@ -1,11 +1,27 @@
 import pandas as pd
+from datetime import datetime
 
 class TriggerChecker:
     def __init__(self,
-                 sessions: pd.DataFrame,
-                 energy_forecast: pd.DataFrame):
+                 sessions: pd.DataFrame
+                 ):
         self.sessions = sessions
-        self.energy_forecast = energy_forecast
     
-    def is_triggered(current_time):
+    def is_triggered(self,
+                     current_dt_utc: datetime,
+                     result: pd.DataFrame,
+                     signals: pd.DataFrame):
+        if (self.sessions['start_dt_utc'] == current_dt_utc):
+            return True
+        if (self.sessions['end_dt_utc'] == current_dt_utc):
+            return True
+        if (result['charged_energy_kwh'] == 0):
+            return True
+        if (signals['end_dt_utc'] == current_dt_utc):
+            return True
+        else:
+            return False
+
+    def update_signals(self,
+                       signals: pd.DataFrame):
         pass

@@ -20,7 +20,7 @@ class EnergyForecastReader(DataReader):
     
     Example:
         # Initialize with default parameters
-        reader = EnergyForecastReader(db_connector=None)
+        reader = EnergyForecastReader(db_connector=db_connector)
 
         # Initialize with custom parameters
         custom_config = {
@@ -33,7 +33,7 @@ class EnergyForecastReader(DataReader):
                 'evening': (30, 50)
             }
         }
-        reader = EnergyForecastReader(db_connector=None, config=custom_config)
+        reader = EnergyForecastReader(db_connector=db_connector, config=custom_config)
     """
     
     DEFAULT_PARAMS = {
@@ -46,7 +46,18 @@ class EnergyForecastReader(DataReader):
             'evening': (20, 40)  
         }
     }
-    
+
+    def read(self, 
+             path: str = None, 
+             start_dt_utc: datetime = None, 
+             end_dt_utc: datetime = None
+             ) -> pd.DataFrame:
+        """Reads the energy data, either from a database when no db connector provided it generates dummy data."""
+        if os.getenv("USE_DUMMY_DATA", "False").lower() == "true":
+            return self._generate_dummy_data(start_dt_utc, end_dt_utc)
+        else:
+            return pd.DataFrame()
+
     def __init__(self, db_connector, config=None):
         """
         Initializes the EnergyForecastReader with optional custom configuration.
@@ -67,10 +78,14 @@ class EnergyForecastReader(DataReader):
         if not end_dt_utc:
             end_dt_utc = datetime.now(timezone.utc)
 
-        datetime_range = pd.date_range(start=start_dt_utc, end=end_dt_utc, freq='15min')
-        energy_kwh = [self._solar_production(dt) - self._office_consumption(dt) for dt in datetime_range]
+        start_dt_range = pd.date_range(start=start_dt_utc, end=end_dt_utc, freq='15min')
+        end_dt_range = start_dt_range + timedelta(minutes=15)
 
-        return pd.DataFrame({'datetime': datetime_range, 'energy_kwh': energy_kwh})
+        energy_kwh = [self._solar_production(dt) - self._office_consumption(dt) for dt in start_dt_range]
+
+        return pd.DataFrame({'start_dt_utc': start_dt_range,
+                              'end_dt_utc': end_dt_range,
+                              'energy_kwh': energy_kwh})
 
     def _solar_production(self, dt: datetime) -> float:
         """Calculates solar production based on Gaussian curve."""

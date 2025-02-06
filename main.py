@@ -10,10 +10,12 @@ from logic.dispatcher import Dispatcher
 from logic.optimizer import Optimizer
 from logic.trigger_checker import TriggerChecker
 from logic.charging_hub import ChargingHub
+from logic.charging_logger import ChargingLogger
+
 from logic.smart_meter import SmartMeter
 from data.energy_forecast_reader import EnergyForecastReader
 from data.session_reader import SessionReader
-
+from data.meter_value_reader import MeterValueReader
 from common.helper_functions import run_local
 
 TIME_STEP = timedelta(seconds=5)
@@ -29,14 +31,17 @@ session_reader = SessionReader(database_connector)
 sessions = session_reader.read()
 energy_forecast_reader = EnergyForecastReader(database_connector)
 energy_forecast = energy_forecast_reader.read()
-meter_value_reader 
 
-smart_meter = SmartMeter()
-trigger_checker = TriggerChecker(sessions, energy_forecast)
-charging_hub = ChargingHub()
+meter_value_reader = MeterValueReader(database_connector)
+meter_values = meter_value_reader.read(energy_forecast=energy_forecast)
+
+charging_logger = ChargingLogger()
+smart_meter = SmartMeter(meter_values)
+trigger_checker = TriggerChecker(sessions)
+charging_hub = ChargingHub(sessions, meter_values)
 optimizer = Optimizer()
 
-dispatcher = Dispatcher(trigger_checker, charging_hub, optimizer)
+dispatcher = Dispatcher(trigger_checker, charging_hub, optimizer, charging_logger)
 
 start_time = sessions["start_dt_utc"].min()
 end_time = sessions["end_dt_utc"].max()
