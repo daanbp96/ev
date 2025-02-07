@@ -71,8 +71,8 @@ class SessionReader(DataReader):
                         "session_id": f"SESSION-{random.randint(100000, 999999)}",
                         "start_dt_utc": session_start,
                         "end_dt_utc": session_end,
-                        "charged_energy_kwh": charged_kwh,
-                        "target_energy_kwh": 0
+                        "charged_energy_kwh": 0,
+                        "target_energy_kwh": charged_kwh
                     }
 
                     data.append(session)

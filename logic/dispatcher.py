@@ -31,7 +31,7 @@ class Dispatcher:
                 charging_cars = self.charging_hub.get_charging_cars(current_dt_utc)
                 if not charging_cars.empty:
                     signals = self.optimizer.optimize_sessions(current_dt_utc, charging_cars)
-            result = self.charging_hub.charge(signals, current_dt_utc, timestep)
+                    result = self.charging_hub.charge(signals, current_dt_utc, timestep)                    
             self.charging_logger.log(current_dt_utc, result)
             current_dt_utc += timestep        
         self.charging_logger.flush_to_dataframe()
