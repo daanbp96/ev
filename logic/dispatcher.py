@@ -18,21 +18,22 @@ class Dispatcher:
         self.charging_logger = charging_logger
 
     def run(self,
-            start_time: datetime,
-            end_time: datetime,
+            start_dt_utc: datetime,
+            end_dt_utc: datetime,
             timestep: timedelta) -> bool:
         
         result = pd.DataFrame()
-        current_time = start_time
-        signals = None
+        current_dt_utc = start_dt_utc
+        signals = pd.DataFrame()
 
-        while current_time <= end_time:
-            if signals is None or self.trigger_checker.is_triggered(current_time, result, signals):
-                cars_charging = self.charging_hub.get_charging_cars(current_time)
-                signals = self.optimizer.optimize_sessions(current_time, cars_charging)
-            result = self.charging_hub.charge(signals)
-            self.charging_logger.log(current_time, result)
-            current_time += timestep        
+        while current_dt_utc <= end_dt_utc:
+            if self.trigger_checker.is_triggered(current_dt_utc, result, signals):
+                charging_cars = self.charging_hub.get_charging_cars(current_dt_utc)
+                if not charging_cars.empty:
+                    signals = self.optimizer.optimize_sessions(current_dt_utc, charging_cars)
+            result = self.charging_hub.charge(signals, current_dt_utc, timestep)
+            self.charging_logger.log(current_dt_utc, result)
+            current_dt_utc += timestep        
         self.charging_logger.flush_to_dataframe()
 
             

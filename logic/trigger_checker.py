@@ -11,13 +11,17 @@ class TriggerChecker:
                      current_dt_utc: datetime,
                      result: pd.DataFrame,
                      signals: pd.DataFrame):
-        if (self.sessions['start_dt_utc'] == current_dt_utc):
+        if result.empty:
             return True
-        if (self.sessions['end_dt_utc'] == current_dt_utc):
+        if signals.empty:
             return True
-        if (result['charged_energy_kwh'] == 0):
+        if (self.sessions['start_dt_utc'] == current_dt_utc).any():
             return True
-        if (signals['end_dt_utc'] == current_dt_utc):
+        if (self.sessions['end_dt_utc'] == current_dt_utc).any():
+            return True
+        if (result['charged_energy_kwh'] == 0).any():
+            return True
+        if (signals['end_dt_utc'] == current_dt_utc).any():
             return True
         else:
             return False

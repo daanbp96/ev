@@ -10,25 +10,25 @@ class MeterValueReader(DataReader):
         super().__init__(db_connector)
 
     def read(self, 
-             path: str = None, 
+             path: str = None,
+             energy_forecast: pd.DataFrame = None, 
              start_dt_utc: datetime = None, 
-             end_dt_utc: datetime = None,
-             energy_forecast: EnergyForecastReader = None,  
+             end_dt_utc: datetime = None
              ) -> pd.DataFrame:
-        """Reads the energy data, either from a database or generates dummy data with deviations based on the energy forecast."""
-        
-        if energy_forecast is None:
-            raise ValueError("energy_forecast must be provided when generating dummy data.")
-
+        """Reads the energy data, either from a database or generates dummy data."""
         if os.getenv("USE_DUMMY_DATA", "False").lower() == "true":
-            return self._generate_dummy_data(start_dt_utc, end_dt_utc, energy_forecast)
+            meter_values = self._generate_dummy_data(energy_forecast)
         else:
-            return pd.DataFrame()
+            meter_values = pd.DataFrame()
+        if os.getenv("DEBUG_MODE", "False").lower() == "true":
+            print("Metervalue data:")
+            print(f"Start datetime (UTC): {meter_values['start_dt_utc'].min()}")
+            print(f"Last end datetime (UTC): {meter_values['end_dt_utc'].max()}")
+            print(f"Total number of rows: {len(meter_values)}")  
+        return meter_values
 
-    def _generate_dummy_data(self, 
-                             start_dt_utc: datetime = None, 
-                             end_dt_utc: datetime = None,
-                             energy_forecast: pd.DataFrame = None
+    def _generate_dummy_data(self,
+                             energy_forecast: datetime,
                              ) -> pd.DataFrame:
         """Generate meter values as deviations of forecast data."""
         

@@ -52,11 +52,17 @@ class EnergyForecastReader(DataReader):
              start_dt_utc: datetime = None, 
              end_dt_utc: datetime = None
              ) -> pd.DataFrame:
-        """Reads the energy data, either from a database when no db connector provided it generates dummy data."""
+        """Reads the energy data, either from a database or generates dummy data."""
         if os.getenv("USE_DUMMY_DATA", "False").lower() == "true":
-            return self._generate_dummy_data(start_dt_utc, end_dt_utc)
+            energy_forecast = self._generate_dummy_data(start_dt_utc, end_dt_utc)
         else:
-            return pd.DataFrame()
+            energy_forecast = pd.DataFrame()
+        if os.getenv("DEBUG_MODE", "False").lower() == "true":
+            print("Energy forecast data:")
+            print(f"Start datetime (UTC): {energy_forecast['start_dt_utc'].min()}")
+            print(f"Last end datetime (UTC): {energy_forecast['end_dt_utc'].max()}")
+            print(f"Total number of rows: {len(energy_forecast)}")  
+        return energy_forecast
 
     def __init__(self, db_connector, config=None):
         """
@@ -71,12 +77,17 @@ class EnergyForecastReader(DataReader):
         self.config = config or self.DEFAULT_PARAMS
 
 
-    def _generate_dummy_data(self, start_dt_utc: datetime = None, end_dt_utc: datetime = None) -> pd.DataFrame:
-
+    def _generate_dummy_data(self, 
+                             start_dt_utc: datetime = None, 
+                             end_dt_utc: datetime = None
+                             ) -> pd.DataFrame:
         if not start_dt_utc:
-            start_dt_utc = datetime.now(timezone.utc) - timedelta(days=7)
+            start_dt_utc = (datetime.now(timezone.utc) - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
         if not end_dt_utc:
             end_dt_utc = datetime.now(timezone.utc)
+
+        start_dt_utc = pd.Timestamp(start_dt_utc).floor("15min")
+        end_dt_utc = pd.Timestamp(end_dt_utc).floor("15min")            
 
         start_dt_range = pd.date_range(start=start_dt_utc, end=end_dt_utc, freq='15min')
         end_dt_range = start_dt_range + timedelta(minutes=15)
