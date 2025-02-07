@@ -27,22 +27,30 @@ class MeterValueReader(DataReader):
             print(f"Total number of rows: {len(meter_values)}")  
         return meter_values
 
-    def _generate_dummy_data(self,
-                             energy_forecast: datetime,
-                             ) -> pd.DataFrame:
+    def _generate_dummy_data(self, energy_forecast: pd.DataFrame) -> pd.DataFrame:
         """Generate meter values as deviations of forecast data."""
         
-        energy_forecast['energy_kwh'] = energy_forecast['energy_kwh'].apply(self._apply_deviations)
-        return energy_forecast
+        meter_values = energy_forecast.copy()
+        
+        # Apply deviations while passing the timestamp
+        meter_values['energy_kwh'] = meter_values.apply(
+            lambda row: self._apply_deviations(row['energy_kwh'], row['start_dt_utc']), axis=1
+        )
 
-    def _apply_deviations(self, energy_kwh: float) -> float:
-        """Apply random deviations to simulate real-world energy readings."""
-        
-        noise = np.random.normal(0, 5) 
-        deviation = energy_kwh + noise
-        
-        if np.random.random() < 0.1: 
-            spike = np.random.uniform(20, 50) 
+        return meter_values
+
+    def _apply_deviations(self, energy_kwh: float, timestamp: datetime) -> float:
+        """Apply frequent small white noise variations and occasional spikes during the day."""
+        deviation = energy_kwh
+        if np.random.random() < 0.8:
+            noise = np.random.uniform(-2, 2)
+            deviation += noise    
+
+        # Apply spikes only between 06:00 and 18:00
+        if 6 <= timestamp.hour <= 18 and np.random.random() < 0.3:
+            spike = np.random.uniform(-15, 15)
             deviation += spike
-        
-        return max(deviation, 0)
+
+        return deviation
+
+
