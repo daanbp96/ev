@@ -14,24 +14,41 @@ class ChargingHub:
     def charge(self,
                signals: pd.DataFrame,
                current_dt_utc: datetime,
-               timestep: timedelta):
-        meter_value = self.smart_meter.get_meter_values(current_dt_utc, current_dt_utc + timestep)
+               timestep: timedelta) -> pd.DataFrame:
+        # Retrieve available energy
+        meter_values = self.smart_meter.get_meter_values(current_dt_utc, current_dt_utc + timestep)
+        available_energy_kwh = meter_values["energy_kwh"] + (self.max_gridpower_kw * timestep.total_seconds() / 3600)
+                                   
+        charging_cars = self.get_charging_cars(current_dt_utc)
 
+        # Merge signals with charging cars
+        active_signals = signals.merge(charging_cars, on="car_id", how="inner")
 
-        
-        #check how much solar is available
-        #check how much in total is available
-        #check how much is asked
-        #verdeel
+        if active_signals.empty:
+            return pd.DataFrame(columns=["car_id", "charged_energy_kwh"])
 
-        return pd.DataFrame()
+        # Ensure no car gets more than its target
+        active_signals["max_possible_kwh"] = active_signals["target_energy_kwh"] - active_signals["charged_energy_kwh"]
+        active_signals["energy_request_kwh"] = active_signals[["energy_kwh", "max_possible_kwh"]].min(axis=1)
 
-    def get_charging_cars(self,
-                           current_time: datetime)-> pd.DataFrame:
-        
-        return  self.sessions[
-                (self.sessions["start_dt_utc"] >= current_time) 
-                & (self.sessions["end_dt_utc"] < current_time)
-                & (self.sessions['charged_energy_kwh'] < self.sessions['target_energy_kwh'])
-            ]
-        
+        total_requested = active_signals["energy_request_kwh"].sum()
+
+        # Distribute energy proportionally
+        if total_requested > available_energy_kwh:
+            scaling_factor = available_energy_kwh / total_requested
+            active_signals["charged_energy_kwh"] = active_signals["energy_request_kwh"] * scaling_factor
+        else:
+            active_signals["charged_energy_kwh"] = active_signals["energy_request_kwh"]
+
+        # Update session records
+        self.sessions.loc[self.sessions["car_id"].isin(active_signals["car_id"]),
+                          "charged_energy_kwh"] += active_signals["charged_energy_kwh"]
+
+        return active_signals[["car_id", "charged_energy_kwh"]]
+
+    def get_charging_cars(self, current_time: datetime) -> pd.DataFrame:
+        return self.sessions[
+            (self.sessions["start_dt_utc"] <= current_time) &
+            (self.sessions["end_dt_utc"] > current_time) &
+            (self.sessions["charged_energy_kwh"] < self.sessions["target_energy_kwh"])
+        ]
