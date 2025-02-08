@@ -2,6 +2,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from logic.smart_meter import SmartMeter
 
+
 class ChargingHub:
     def __init__(self,
                  sessions: pd.DataFrame,
@@ -15,25 +16,22 @@ class ChargingHub:
                signals: pd.DataFrame,
                current_dt_utc: datetime,
                timestep: timedelta) -> pd.DataFrame:
-        # Retrieve available energy
         meter_values = self.smart_meter.get_meter_values(current_dt_utc, current_dt_utc + timestep)
-        available_energy_kwh = meter_values["energy_kwh"] + (self.max_gridpower_kw * timestep.total_seconds() / 3600)
+        available_energy_kwh = (self.max_gridpower_kw * timestep.total_seconds() / 3600) + meter_values["energy_kwh"]
                                    
-        charging_cars = self.get_charging_cars(current_dt_utc)
+        charging_cars = self.get_charging_cars(current_dt_utc) #called twice now, not efficient. maybe pass as parameter or store?
 
-        # Merge signals with charging cars
-        active_signals = signals.merge(charging_cars, on="car_id", how="inner")
+        selected_columns = ["card_id", "charging_speed_kw", "charged_energy_kwh", "target_energy_kwh"]
+        active_signals = signals.merge(charging_cars[selected_columns], on="car_id", how="inner")
 
-        if active_signals.empty:
-            return pd.DataFrame(columns=["car_id", "charged_energy_kwh"])
+        max_requested_energy_kwh = (active_signals["target_energy_kwh"] - active_signals["charged_energy_kwh"])
+        max_charging_kwh = active_signals["charging_speed_kw"] * (timestep.seconds / 3600)
+        active_signals["max_requested_energy_kwh"] = max_requested_energy_kwh.combine(max_charging_kwh, min)
 
-        # Ensure no car gets more than its target
-        active_signals["max_possible_kwh"] = active_signals["target_energy_kwh"] - active_signals["charged_energy_kwh"]
-        active_signals["energy_request_kwh"] = active_signals[["energy_kwh", "max_possible_kwh"]].min(axis=1)
+        # Final energy request, limited by available energy
+        active_signals["energy_request_kwh"] = active_signals[["energy_kwh", "max_requested_energy_kwh"]].min(axis=1)
 
         total_requested = active_signals["energy_request_kwh"].sum()
-
-        # Distribute energy proportionally
         if total_requested > available_energy_kwh:
             scaling_factor = available_energy_kwh / total_requested
             active_signals["charged_energy_kwh"] = active_signals["energy_request_kwh"] * scaling_factor

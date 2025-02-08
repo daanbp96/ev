@@ -71,6 +71,7 @@ class SessionReader(DataReader):
                         "session_id": f"SESSION-{random.randint(100000, 999999)}",
                         "start_dt_utc": session_start,
                         "end_dt_utc": session_end,
+                        "charging_speed_kw": 11, #hardcoded, later calculated
                         "charged_energy_kwh": 0,
                         "target_energy_kwh": charged_kwh
                     }
